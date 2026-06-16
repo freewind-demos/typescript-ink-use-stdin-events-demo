@@ -53,7 +53,34 @@ src/
   vendor/ink-input/      ink 键盘解析（vend，因 ink 未 export 内部模块）
 ```
 
+## 为什么 vendor `ink-input`
+
+本 demo 复用 ink 内部两块解析逻辑：
+
+| 模块 | 作用 |
+|---|---|
+| `createInputParser` | stdin 分块、bracket paste、pending escape |
+| `parseKeypress` | 单键解析（含 kitty protocol） |
+
+ink 官方只 export `useInput`，且 `package.json` 的 `exports` 仅 `./build/index.js`，**不能** `import from "ink/build/parse-keypress.js"`。因此把 `ink@7` 对应源码原样 vend 到 `src/vendor/ink-input/`。
+
+mouse / focus 映射在 `parse-input-event.ts` 自写，不来自 ink。
+
+## 第三方替代方案
+
+npm 上**没有**公开包提供与本 demo 同形态的「统一 `InputEvent` + React hook」。常见选项是拆开的：
+
+| 方案 | 覆盖 | 说明 |
+|---|---|---|
+| ink `useInput` + `usePaste` | 键盘 + 粘贴 | 官方 API；无鼠标、无终端窗口 focus |
+| [ink-use-mouse](https://github.com/AskExe/ink-use-mouse) | 鼠标 | 需配 `useInput` 吞 escape；不管 paste/focus |
+| [@zenobius/ink-mouse](https://github.com/zenobi-us/ink-mouse) | 鼠标 + hit test | 偏组件交互，非统一事件流 |
+| [tty-events](https://github.com/dd-pardal/tty-events) | key + mouse + paste + focus | 非 React/ink；与 ink 抢 stdin，需自行桥接 |
+
+若只需键盘，直接用 ink 官方 hook 即可，不必 vendor。
+
 ## 注意
 
 - 不要和 `useInput` 同时处理同一逻辑
 - 需真实 TTY；hook 内会 `setRawMode(true)`
+- ink 升级后需手动 sync `vendor/ink-input/` 三个 `.js` 文件
