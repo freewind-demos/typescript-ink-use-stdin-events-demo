@@ -2,7 +2,7 @@
 
 ## 简介
 
-用 `useStdin().stdin.on("data")` 监听终端原始输入，收到什么就显示 hex 和文本。
+在 `useStdin` 原始字节之上封装 **`useInputEvent`** hook：每次回调拿到一个确定的 `InputEvent`（键盘 / 鼠标 / 粘贴 / 焦点 / 文本）。
 
 ## 快速开始
 
@@ -11,21 +11,49 @@ pnpm install
 pnpm start
 ```
 
-## 用法
+## useInputEvent
 
-- 按键、点鼠标、粘贴 → 上方显示最后一次，下方列最近 12 条
-- `q` / `esc` 退出
-- `c` 清日志
+```tsx
+import { useInputEvent } from "./use-input-event.js"
 
-格式：`hex字节 | JSON文本`，例如方向键会看到 `1b 5b 41 | "\u001b[A"`。
+useInputEvent((event) => {
+  if (event.type === "key" && event.name === "up") {
+    // 方向键
+  }
 
-## 原理
+  if (event.type === "mouse" && event.button === "left" && event.action === "press") {
+    // 左键点击 @ event.column, event.row
+  }
 
-Ink 的 `useStdin()` 返回 Node.js 的 `stdin` 流。终端不会直接给「Up 键」这种语义，而是发字节；本 demo 不做解析，原样展示。
+  if (event.type === "paste") {
+    // event.text
+  }
+})
+```
 
-鼠标默认开启 xterm SGR 追踪（`?1000/1006`），点击会看到 `ESC [ <...` 序列。
+## InputEvent 类型
 
-## 相关 demo
+| type | 含义 |
+|---|---|
+| `key` | 单键：name / text / modifiers / action |
+| `text` | 连续可打印字符 |
+| `paste` | bracket paste 整段 |
+| `mouse` | 左/中/右/滚轮/move + 坐标 |
+| `focus` | 终端窗口 focus in/out |
+| `unknown` | 未识别 escape |
 
-- `typescript-ink-use-input-capabilities-demo`：对比 `useInput` 高层语义
-- `typescript-ink-react-tui-use-input-stdin-conflict-demo`：`useInput` 与 stdin 同时监听
+## 目录
+
+```
+src/
+  index.tsx              演示入口
+  input-event.ts         类型
+  parse-input-event.ts   字节 → InputEvent
+  use-input-event.ts     hook
+  vendor/ink-input/      ink 键盘解析（vend，因 ink 未 export 内部模块）
+```
+
+## 注意
+
+- 不要和 `useInput` 同时处理同一逻辑
+- 需真实 TTY；hook 内会 `setRawMode(true)`
